@@ -152,7 +152,7 @@ export class BedrockChatbotStack extends cdk.Stack {
     const chatFunction = new lambda.Function(this, 'ChatFunction', {
       runtime: lambda.Runtime.PYTHON_3_10,
       handler: 'index.lambda_handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      code: lambda.Code.fromAsset(path.join(path.dirname(new URL(import.meta.url).pathname), '../lambda')),
       timeout: cdk.Duration.seconds(30),
       memorySize: 128,
       role: lambdaRole,
@@ -449,6 +449,14 @@ export class BedrockChatbotStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
       description: 'The ID of the Cognito User Pool Client',
+    });
+    new lambda.Function(this, 'ChatFn', {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: 'index.lambda_handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        MODEL_API_URL: process.env.MODEL_API_URL
+      },
     });
   }
 }
