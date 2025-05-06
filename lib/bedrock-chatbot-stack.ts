@@ -14,7 +14,8 @@ import * as cr from 'aws-cdk-lib/custom-resources';
 import * as logs from 'aws-cdk-lib/aws-logs';
 
 export interface BedrockChatbotStackProps extends cdk.StackProps {
-  modelId?: string;
+  readonly modelId: string;
+  readonly modelApiUrl: string;   // ← 追加
 }
 
 export class BedrockChatbotStack extends cdk.Stack {
@@ -22,6 +23,19 @@ export class BedrockChatbotStack extends cdk.Stack {
     super(scope, id, props);
 
     const modelId = props?.modelId || 'us.amazon.nova-lite-v1:0';
+
+    const fn = new lambda.Function(this, 'ChatHandler', {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: 'index.lambda_handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
+      environment: {
+        MODEL_ID: props.modelId,
+        MODEL_API_URL: props.modelApiUrl,   // ← 環境変数として Lambda に注入
+        // 他の環境変数...
+      },
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 1024,
+    });
 
     // Cognito User Poolの作成
     const userPool = new cognito.UserPool(this, 'ChatbotUserPool', {
@@ -152,7 +166,7 @@ export class BedrockChatbotStack extends cdk.Stack {
     const chatFunction = new lambda.Function(this, 'ChatFunction', {
       runtime: lambda.Runtime.PYTHON_3_10,
       handler: 'index.lambda_handler',
-      code: lambda.Code.fromAsset(path.join(path.dirname(new URL(import.meta.url).pathname), '../lambda')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
       timeout: cdk.Duration.seconds(30),
       memorySize: 128,
       role: lambdaRole,
@@ -449,14 +463,6 @@ export class BedrockChatbotStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
       description: 'The ID of the Cognito User Pool Client',
-    });
-    new lambda.Function(this, 'ChatFn', {
-      runtime: lambda.Runtime.PYTHON_3_9,
-      handler: 'index.lambda_handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
-      environment: {
-        MODEL_API_URL: process.env.MODEL_API_URL
-      },
     });
   }
 }
